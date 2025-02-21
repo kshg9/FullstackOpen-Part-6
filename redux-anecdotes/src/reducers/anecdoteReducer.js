@@ -1,4 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit"
+import anecdotesService from "../services/anecdotesService"
+import { setNotification } from "./notificationReducer"
 
 // const anecdotesAtStart = [
 //   'If it hurts, do it more often',
@@ -9,7 +11,6 @@ import { createSlice } from "@reduxjs/toolkit"
 //   'Debugging is twice as hard as writing the code in the first place. Therefore, if you write the code as cleverly as possible, you are, by definition, not smart enough to debug it.'
 // ]
 
-const getId = () => (100000 * Math.random()).toFixed(0)
 
 // const asObject = (anecdote) => {
 //   return {
@@ -26,28 +27,49 @@ const anecdoteSlice = createSlice({
   initialState: [],
   reducers: {
     createAnecdote(state, action) {
-      const content = action.payload
+      const anecdote = action.payload
       state.push({
-        content,
+        ...anecdote,
         votes: 0,
-        id: getId()
       })
     },
     vote(state, action) {
+      console.log('action', action)
       const id = action.payload
       const anecdoteToChange = state.find(s => s.id === id)
       if (anecdoteToChange) {
         anecdoteToChange.votes += 1
       }
     },
-    appendAnecdote(state, action) {
-      state.push(action.payload)
-    },
-    setAnecdotes(state, action) {
+    setAnecdotes(state, action) { // fetch anecdotes from server
       return action.payload
     }
   }
 })
 
-export const { createAnecdote, vote, appendAnecdote, setAnecdotes } = anecdoteSlice.actions
+export const initializeAnecdotes = () => {
+  return async dispatch => {
+    const anecdotes = await anecdotesService.getAll()
+    dispatch(setAnecdotes(anecdotes))
+  }
+}
+
+export const createAnecdoteAction = content => {
+  return async dispatch =>  {
+    const newAnecdote = await anecdotesService.createNew(content)
+    dispatch(createAnecdote(newAnecdote))
+    dispatch(setNotification(`You created '${content}'`, 10))
+  }
+}
+
+export const voteAnecdote = anecdote => {
+  console.log('anecdote: ', anecdote)
+  return async dispatch => {
+    const updatedAnecdote = await anecdotesService.vote(anecdote.id, anecdote)
+    dispatch(vote(updatedAnecdote.id))
+    dispatch(setNotification(`You voted for '${anecdote.content}'`, 10))
+  }
+}
+
+export const { createAnecdote, vote, setAnecdotes } = anecdoteSlice.actions
 export default anecdoteSlice.reducer
